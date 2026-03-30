@@ -1,4 +1,4 @@
-# ROS2-Tutorial
+# Setup Docker
 
 ## Install linux on window with WSL
 Open `Windows PowerShell` with `Administrator` and run command
