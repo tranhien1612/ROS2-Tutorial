@@ -1,4 +1,3 @@
-# ROS2 Tutorial
 
 ## Running Executables
 ```
@@ -314,17 +313,16 @@ Run node
 ros2 run my_package my_node
 ```
 
-## Publisher and Subscriber C++
-In the ROS tutorial, we will create pub and sub package in C++
-
-Install CMake extension to view CMakeLists.txt files with syntax coloring.
-
-Create package from `~/ros2_ws/src`. We will make a `cpp_pubsub` package folder with the following generated `include`, `src`, `CMakeLists.txt`, and `package.xml`
+## Publisher and Subcriber CPP or python
 ```
 cd ~/ros2_ws/src
+# cpp
 ros2 pkg create --build-type ament_cmake cpp_pubsub
+# python 
+ros2 pkg create --build-type ament_python py_pubsub
 ```
-In `cpp_pubsub/src`, create 2 file `publisher_member_function.cpp`, `subscriber_member_function.cpp`
+
+In `cpp_pubsub/src`, create 2 file `publisher_member_function.cpp`, `subscriber_member_function.cpp` for cpp:
 
 ```
 publisher_member_function.cpp
@@ -421,6 +419,87 @@ install(TARGETS
 )
 ```
 
+Create `publisher_member_function.py` and `subscriber_member_function.py` in `py_pubsub/py_pubsub` for python:
+```
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MinimalPublisher(Node):
+
+    def __init__(self):
+        super().__init__('minimal_publisher')
+        self.publisher_ = self.create_publisher(String, 'topic', 10)
+        self.timer = self.create_timer(0.5, self.timer_callback)
+        self.count = 0
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = f'Hello, world {self.count}'
+        self.publisher_.publish(msg)
+        self.get_logger().info(f'Publishing: "{msg.data}"')
+        self.count += 1
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MinimalPublisher()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+```
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MinimalSubscriber(Node):
+
+    def __init__(self):
+        super().__init__('minimal_subscriber')
+        self.subscription = self.create_subscription(
+            String,
+            'topic',
+            self.listener_callback,
+            10
+        )
+
+    def listener_callback(self, msg):
+        self.get_logger().info(f'I heard: "{msg.data}"')
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MinimalSubscriber()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+Add command `package.xml`:
+```
+<exec_depend>rclpy</exec_depend>
+<exec_depend>std_msgs</exec_depend>
+```
+
+Add command `setup.py`:
+```
+entry_points={
+    'console_scripts': [
+        'talker = py_pubsub.publisher_member_function:main',
+        'listener = py_pubsub.subscriber_member_function:main'
+    ],
+},
+```
 Check for missing dependencies from `~/ros2_ws`
 ```
 rosdep install -i --from-path src --rosdistro humble -y
@@ -428,19 +507,295 @@ rosdep install -i --from-path src --rosdistro humble -y
 
 Build with colon from `~/ros2_ws`
 ```
+# cpp
 colcon build --packages-select cpp_pubsub
+# python
+colcon build --packages-select py_pubsub
 ```
-
 In one terminal, run the talker from `~/ros2_ws`
 ```
 cd ~/ros2_ws
 source install/setup.bash
-ros2 run cpp_pubsub talker
+ros2 run py_pubsub talker
 ```
 
 In another terminal, run the listener from `~/ros2_ws`
 ```
 cd ~/ros2_ws
 source install/setup.bash
-ros2 run cpp_pubsub listener
+ros2 run py_pubsub listener
+```
+
+## Service and Client C++ or python
+```
+cd ~/ros2_ws/src
+# cpp
+ros2 pkg create --build-type ament_cmake cpp_srvcli --dependencies rclcpp example_interfaces
+# python
+ros2 pkg create --build-type ament_python py_srvcli --dependencies rclpy example_interfaces
+```
+
+Create `add_two_ints_client.cpp` and `add_two_ints_server.cpp` in `cpp_srvcli/src` for cpp:
+```
+#include <chrono>
+#include <memory>
+#include "rclcpp/rclcpp.hpp"
+#include "example_interfaces/srv/add_two_ints.hpp"
+
+using namespace std::chrono_literals;
+
+class AddTwoIntsClient : public rclcpp::Node
+{
+public:
+    AddTwoIntsClient() : Node("add_two_ints_client")
+    {
+        client_ = this->create_client<example_interfaces::srv::AddTwoInts>("add_two_ints");
+
+        while (!client_->wait_for_service(1s)) {
+            RCLCPP_INFO(this->get_logger(), "Waiting for service...");
+        }
+
+        auto request = std::make_shared<example_interfaces::srv::AddTwoInts::Request>();
+        request->a = 5;
+        request->b = 3;
+
+        auto result = client_->async_send_request(request,
+            std::bind(&AddTwoIntsClient::response_callback, this, std::placeholders::_1));
+    }
+
+private:
+    void response_callback(rclcpp::Client<example_interfaces::srv::AddTwoInts>::SharedFuture future)
+    {
+        auto response = future.get();
+        RCLCPP_INFO(this->get_logger(), "Result: %ld", response->sum);
+        rclcpp::shutdown();
+    }
+
+    rclcpp::Client<example_interfaces::srv::AddTwoInts>::SharedPtr client_;
+};
+
+int main(int argc, char * argv[])
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<AddTwoIntsClient>());
+    return 0;
+}
+```
+
+```
+#include <memory>
+#include "rclcpp/rclcpp.hpp"
+#include "example_interfaces/srv/add_two_ints.hpp"
+
+using std::placeholders::_1;
+using std::placeholders::_2;
+
+class AddTwoIntsServer : public rclcpp::Node
+{
+public:
+    AddTwoIntsServer() : Node("add_two_ints_server")
+    {
+        service_ = this->create_service<example_interfaces::srv::AddTwoInts>(
+            "add_two_ints",
+            std::bind(&AddTwoIntsServer::handle_service, this, _1, _2)
+        );
+        RCLCPP_INFO(this->get_logger(), "Service ready");
+    }
+
+private:
+    void handle_service(
+        const std::shared_ptr<example_interfaces::srv::AddTwoInts::Request> request,
+        std::shared_ptr<example_interfaces::srv::AddTwoInts::Response> response)
+    {
+        response->sum = request->a + request->b;
+        RCLCPP_INFO(this->get_logger(), "Request: %ld + %ld", request->a, request->b);
+    }
+
+    rclcpp::Service<example_interfaces::srv::AddTwoInts>::SharedPtr service_;
+};
+
+int main(int argc, char * argv[])
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<AddTwoIntsServer>());
+    rclcpp::shutdown();
+    return 0;
+}
+```
+
+Add command in `CMakeLists.txt` if using cpp:
+```
+add_executable(add_two_ints_server src/add_two_ints_server.cpp)
+ament_target_dependencies(add_two_ints_server rclcpp example_interfaces)
+
+add_executable(add_two_ints_client src/add_two_ints_client.cpp)
+ament_target_dependencies(add_two_ints_client rclcpp example_interfaces)
+
+install(TARGETS
+  add_two_ints_server
+  add_two_ints_client
+  DESTINATION lib/${PROJECT_NAME}
+)
+```
+
+Create `add_two_ints_client.py` and `add_two_ints_server.py` in `py_srvcli/py_srvcli` for python:
+```
+import sys
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class AddTwoIntsClient(Node):
+
+    def __init__(self):
+        super().__init__('add_two_ints_client')
+        self.client = self.create_client(AddTwoInts, 'add_two_ints')
+
+        while not self.client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Waiting for service...')
+
+    def send_request(self, a, b):
+        request = AddTwoInts.Request()
+        request.a = a
+        request.b = b
+        return self.client.call_async(request)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    node = AddTwoIntsClient()
+
+    a = 5
+    b = 3
+
+    future = node.send_request(a, b)
+    rclpy.spin_until_future_complete(node, future)
+
+    if future.result() is not None:
+        node.get_logger().info(f"Result: {future.result().sum}")
+    else:
+        node.get_logger().error("Service call failed")
+
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+```
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class AddTwoIntsServer(Node):
+
+    def __init__(self):
+        super().__init__('add_two_ints_server')
+        self.srv = self.create_service(
+            AddTwoInts,
+            'add_two_ints',
+            self.handle_add_two_ints
+        )
+        self.get_logger().info("Service ready")
+
+    def handle_add_two_ints(self, request, response):
+        response.sum = request.a + request.b
+        self.get_logger().info(f"Incoming request: {request.a} + {request.b}")
+        return response
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = AddTwoIntsServer()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+Add command in `setup.py` if using python:
+```
+'console_scripts': [
+    'add_server = py_srvcli.add_two_ints_server:main',
+    'add_client = py_srvcli.add_two_ints_client:main',
+],
+```
+
+Build
+```
+# cpp
+colcon build --packages-select cpp_srvcli
+# python
+colcon build --packages-select py_srvcli
+```
+
+In a terminal, run Server:
+```
+# cpp
+ros2 run cpp_srvcli add_two_ints_server
+# python
+ros2 run cpp_srvcli add_server
+```
+In another terminal, run Client:
+```
+# cpp
+ros2 run cpp_srvcli add_two_ints_client
+# python
+ros2 run cpp_srvcli add_client
+```
+
+## Service with custom interface
+```
+cd ~/ros2_ws
+ros2 pkg create --build-type ament_cmake tutorial_interfaces
+cd tutorial_interfaces
+mkdir srv msg
+```
+Create `Num.msg` and `Sphere.msg` in msg folder and `AddThreeInts.srv` in srv folder:
+```
+int64 num
+```
+```
+geometry_msgs/Point center
+float64 radius
+```
+```
+int64 a
+int64 b
+int64 c
+---
+int64 sum
+```
+Add command in `CMakeLists.txt`:
+```
+find_package(geometry_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Num.msg"
+  "msg/Sphere.msg"
+  "srv/AddThreeInts.srv"
+  DEPENDENCIES geometry_msgs
+)
+```
+Add command in `package.xml`:
+```
+  <depend>geometry_msgs</depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+```
+
+Build and test:
+```
+colcon build --packages-select tutorial_interfaces
+source install/setup.bash
+ros2 interface show tutorial_interfaces/msg/Num
+ros2 interface show tutorial_interfaces/msg/Sphere
+ros2 interface show tutorial_interfaces/srv/AddThreeInts
 ```
