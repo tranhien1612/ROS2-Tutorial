@@ -47,7 +47,7 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - ~/ros2_ws:/home/ros2_ws
+      - ~/ros2_ws:~/ros2_ws
     environment:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
