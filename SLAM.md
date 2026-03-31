@@ -1,5 +1,21 @@
 # Available Open Source SLAM
 
+## SLAM 2D
+
+| Package Name | Explanation | Repository Link | Loop Closure | Sensors | ROS Version | Dependencies |
+|--------------|-------------|-----------------|--------------|---------|-------------|--------------|
+| GMapping | Rao-Blackwellized particle filter SLAM for 2D occupancy grid mapping | [slam_gmapping](https://github.com/ros-perception/slam_gmapping) | ✔️ | LiDAR<br>Odometry | ROS 1 | ROS navigation stack |
+| Hector SLAM | Scan matching-based SLAM without odometry, suitable for high-frequency LiDAR | [hector_slam](https://github.com/tu-darmstadt-ros-pkg/hector_slam) | ❌ | LiDAR | ROS 1 | Eigen |
+| Cartographer 2D | Google’s real-time SLAM with pose graph optimization and loop closure | [cartographer_ros](https://github.com/cartographer-project/cartographer_ros) | ✔️ | LiDAR<br>IMU (Optional) | ROS 1 / ROS 2 | Ceres<br>Eigen<br>Lua |
+| Karto SLAM | Graph-based SLAM using sparse pose adjustment | [slam_karto](https://github.com/ros-perception/slam_karto) | ✔️ | LiDAR<br>Odometry | ROS 1 | OpenKarto |
+| RTAB-Map (2D mode) | Graph-based SLAM supporting loop closure and multi-session mapping | [rtabmap_ros](https://github.com/introlab/rtabmap_ros) | ✔️ | LiDAR<br>RGB-D (Optional)<br>IMU | ROS 1 / ROS 2 | OpenCV<br>PCL<br>GTSAM |
+| SLAM Toolbox | Modern 2D SLAM with lifelong mapping and pose graph optimization | [slam_toolbox](https://github.com/SteveMacenski/slam_toolbox) | ✔️ | LiDAR<br>Odometry | ROS 2 | Ceres<br>Eigen |
+| CoreSLAM | Lightweight SLAM for embedded systems | [coreslam](https://github.com/introlab/coreslam) | ❌ | LiDAR | ROS 1 | Minimal dependencies |
+| Lago SLAM | Lightweight graph optimization-based SLAM | [LAGO-SLAM](https://github.com/LCAS/LAGO-SLAM) | ✔️ | LiDAR<br>Odometry | ROS 1 | g2o |
+| MRPT SLAM | Probabilistic SLAM framework supporting multiple 2D methods | [mrpt](https://github.com/MRPT/mrpt) | ✔️ | LiDAR<br>Odometry | ROS 1 / ROS 2 | MRPT libs |
+| BreezySLAM | Ultra-lightweight SLAM for low-power robots | [BreezySLAM](https://github.com/simondlevy/BreezySLAM) | ❌ | LiDAR | No ROS (can integrate) | Minimal |
+
+## SLAM 3D
 | Package Name | Explanation | Repository Link | Loop Closure | Sensors | ROS Version | Dependencies |
 |--------------|-------------|-----------------|--------------|---------|-------------|--------------|
 | DLIO | LiDAR-Inertial Odometry is a lightweight LiDAR-inertial odometry algorithm using a coarse-to-fine continuous-time trajectory for precise motion correction | [DLIO](https://github.com/vectr-ucla/direct_lidar_inertial_odometry) | ✔️ | LiDAR<br>IMU | ROS 2 | PCL<br>Eigen<br>OpenMP |
